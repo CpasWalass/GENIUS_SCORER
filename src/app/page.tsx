@@ -12,9 +12,9 @@ export default function HomePage() {
         </p>
         <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
           <a href="/admin" className="btn-primary" style={{ textDecoration: 'none' }}>ADMINISTRATION</a>
-          <button className="btn-primary" style={{ background: 'transparent', border: '1px solid var(--accent-blue)' }} onClick={() => alert('Entrez l\'ID du match fourni par l\'admin')}>
+          {/* <button className="btn-primary" style={{ background: 'transparent', border: '1px solid var(--accent-blue)' }} onClick={() => alert('Entrez l\'ID du match fourni par l\'admin')}>
             REJOINDRE UN MATCH
-          </button>
+          </button> */}
         </div>
       </div>
     </main>

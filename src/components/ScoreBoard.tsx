@@ -9,11 +9,15 @@ interface ScoreBoardProps {
   match: Match & { rubriques: Rubrique[] };
   isAdmin?: boolean;
   onUpdate?: (rubriqueId: string, data: Partial<Rubrique>) => void;
+  selectedRubriqueId?: string | null;
+  onSelect?: (id: string) => void;
 }
 
-export default function ScoreBoard({ match, isAdmin, onUpdate }: ScoreBoardProps) {
+export default function ScoreBoard({ match, isAdmin, onUpdate, selectedRubriqueId, onSelect }: ScoreBoardProps) {
   const [animatingScore, setAnimatingScore] = useState<string | null>(null);
   const [localRubriques, setLocalRubriques] = useState(match.rubriques);
+  
+  const activeRubrique = localRubriques.find(r => r.id === (selectedRubriqueId || localRubriques[0]?.id));
 
   useEffect(() => {
     setLocalRubriques(match.rubriques);
@@ -33,7 +37,6 @@ export default function ScoreBoard({ match, isAdmin, onUpdate }: ScoreBoardProps
   }, []);
 
   useEffect(() => {
-    // Trigger animation when total scores change
     setAnimatingScore('total');
     const timer = setTimeout(() => setAnimatingScore(null), 300);
     return () => clearTimeout(timer);
@@ -45,10 +48,10 @@ export default function ScoreBoard({ match, isAdmin, onUpdate }: ScoreBoardProps
     return `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
   };
 
-  return (
-    <div className={styles.scoreboard}>
+  const Content = (
+    <div className={styles.mainContent}>
       <header className={styles.header}>
-        <h3>IAI Genius Scoreboard</h3>
+        <h3>IAI Genius</h3>
         <h1>{match.title}</h1>
       </header>
 
@@ -63,8 +66,7 @@ export default function ScoreBoard({ match, isAdmin, onUpdate }: ScoreBoardProps
         <div className={styles.vsContainer}>
           <span className={styles.vs}>VS</span>
           <div className={styles.timer}>
-            {/* Display the timer of the first running rubrique or the first one in general */}
-            {formatTime(localRubriques.find(r => r.is_running)?.timer_seconds ?? localRubriques[0]?.timer_seconds ?? 0)}
+            {formatTime(activeRubrique?.timer_seconds ?? 0)}
           </div>
         </div>
 
@@ -76,54 +78,101 @@ export default function ScoreBoard({ match, isAdmin, onUpdate }: ScoreBoardProps
         </div>
       </main>
 
-      <section className={styles.rubriquesGrid}>
-        {localRubriques.map((rubrique) => (
-          <div key={rubrique.id} className={styles.rubrique}>
-            <div className={styles.rubriqueHeader}>
-              <span className={styles.rubriqueName}>{rubrique.name}</span>
-              <span className={styles.rubriqueTimer}>{formatTime(rubrique.timer_seconds)}</span>
-            </div>
-
-            <div className={styles.rubriqueScores}>
-              <div className={styles.rubriqueValue}>
-                <span>{rubrique.score_a}</span>
-                <span className={styles.rubriqueLabel}>{match.team_a_name}</span>
-              </div>
-              <span className={styles.vs}>-</span>
-              <div className={styles.rubriqueValue}>
-                <span>{rubrique.score_b}</span>
-                <span className={styles.rubriqueLabel}>{match.team_b_name}</span>
-              </div>
-            </div>
-
-            {isAdmin && onUpdate && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                <div style={{ display: 'flex', gap: '0.2rem' }}>
-                  <button 
-                  onClick={() => onUpdate(rubrique.id, { score_a: rubrique.score_a + rubrique.points_per_click })}
-                  className="btn-primary" style={{ padding: '0.5rem' }}>+A</button>
-                  <button 
-                  onClick={() => onUpdate(rubrique.id, { score_a: Math.max(0, rubrique.score_a - rubrique.points_per_click) })}
-                  className="btn-danger" style={{ padding: '0.5rem' }}>-A</button>
-                </div>
-                <div style={{ display: 'flex', gap: '0.2rem' }}>
-                  <button 
-                  onClick={() => onUpdate(rubrique.id, { score_b: rubrique.score_b + rubrique.points_per_click })}
-                  className="btn-primary" style={{ padding: '0.5rem' }}>+B</button>
-                  <button 
-                  onClick={() => onUpdate(rubrique.id, { score_b: Math.max(0, rubrique.score_b - rubrique.points_per_click) })}
-                  className="btn-danger" style={{ padding: '0.5rem' }}>-B</button>
-                </div>
+      {/* Admin Panel */}
+      {isAdmin && activeRubrique && onUpdate && (
+        <section className={styles.controlPanel}>
+          <div className={styles.activeRubriqueTitle}>
+            Contrôle : {activeRubrique.name}
+          </div>
+          
+          <div className={styles.controlsGrid}>
+            <div className={styles.teamControls}>
+              <div style={{ textAlign: 'center', marginBottom: '0.5rem', fontWeight: 'bold' }}>{match.team_a_name}</div>
+              <div style={{ display: 'flex', gap: '1rem' }}>
                 <button 
-                  onClick={() => onUpdate(rubrique.id, { is_running: !rubrique.is_running, timer_seconds: rubrique.timer_seconds })}
-                  className="btn-primary" style={{ gridColumn: 'span 2', marginTop: '0.5rem' }}>
-                  {rubrique.is_running ? 'PAUSE' : 'START'} TIMER
+                  onClick={() => onUpdate(activeRubrique.id, { score_a: activeRubrique.score_a + activeRubrique.points_per_click })}
+                  className={clsx("btn-primary", styles.bigBtn)}>
+                  + <span>{activeRubrique.points_per_click}</span>
+                </button>
+                <button 
+                  onClick={() => onUpdate(activeRubrique.id, { score_a: activeRubrique.score_a - activeRubrique.points_per_click })}
+                  className={clsx("btn-danger", styles.bigBtn)}>
+                  - <span>{activeRubrique.points_per_click}</span>
                 </button>
               </div>
-            )}
+            </div>
+
+            <div className={styles.teamControls}>
+              <div style={{ textAlign: 'center', marginBottom: '0.5rem', fontWeight: 'bold' }}>{match.team_b_name}</div>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button 
+                  onClick={() => onUpdate(activeRubrique.id, { score_b: activeRubrique.score_b + activeRubrique.points_per_click })}
+                  className={clsx("btn-primary", styles.bigBtn)}>
+                  + <span>{activeRubrique.points_per_click}</span>
+                </button>
+                <button 
+                  onClick={() => onUpdate(activeRubrique.id, { score_b: activeRubrique.score_b - activeRubrique.points_per_click })}
+                  className={clsx("btn-danger", styles.bigBtn)}>
+                  - <span>{activeRubrique.points_per_click}</span>
+                </button>
+              </div>
+            </div>
           </div>
-        ))}
-      </section>
+
+          <button 
+            onClick={() => onUpdate(activeRubrique.id, { is_running: !activeRubrique.is_running, timer_seconds: activeRubrique.timer_seconds })}
+            className="btn-primary" style={{ width: '100%', padding: '1rem', background: activeRubrique.is_running ? 'var(--accent-red)' : 'var(--accent-blue)', fontWeight: 'bold' }}>
+            {activeRubrique.is_running ? 'PAUSER LE CHRONO' : 'LANCER LE CHRONO'}
+          </button>
+        </section>
+      )}
+
+      {/* Grid of rubriques (Client View or Admin secondary info) */}
+      {!isAdmin && (
+        <section className={styles.rubriquesGrid}>
+          {localRubriques.map((rubrique) => (
+            <div key={rubrique.id} className={styles.rubrique}>
+              <div className={styles.rubriqueHeader}>
+                <span className={styles.rubriqueName}>{rubrique.name}</span>
+                <span className={styles.rubriqueTimer}>{formatTime(rubrique.timer_seconds)}</span>
+              </div>
+
+              <div className={styles.rubriqueScores}>
+                <div className={styles.rubriqueValue}>
+                  <span>{rubrique.score_a}</span>
+                </div>
+                <span className={styles.vs}>-</span>
+                <div className={styles.rubriqueValue}>
+                  <span>{rubrique.score_b}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
     </div>
   );
+
+  if (isAdmin) {
+    return (
+      <div className={styles.adminLayout}>
+        <aside className={styles.sidebar}>
+          <h4 style={{ padding: '0.5rem', opacity: 0.6, fontSize: '0.8rem' }}>RUBRIQUES</h4>
+          {localRubriques.map(r => (
+            <div 
+              key={r.id} 
+              className={clsx(styles.sidebarItem, selectedRubriqueId === r.id && styles.sidebarItemActive)}
+              onClick={() => onSelect?.(r.id)}
+            >
+              <span>{r.name}</span>
+              <span style={{ fontSize: '0.8rem', opacity: 0.8 }}>{r.score_a - r.score_b}</span>
+            </div>
+          ))}
+        </aside>
+        {Content}
+      </div>
+    );
+  }
+
+  return Content;
 }
